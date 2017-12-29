@@ -70,12 +70,24 @@ const extractTags = (content: string): Array<string> => {
     .filter(x => x.length < 15);
 };
 
+const addLink = (content: string): string => {
+  return content.replace(
+    /((https?\:\/\/)|(www\.))(\S+)(\w{2,4})(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/gi,
+    (url: string) => {
+      if (!url.match('^https?:\/\/')) {
+        url = 'http://' + url;
+      }
+      return '<a href="' + url + '" target="_blank">' + url + '</a>';
+    }
+  );
+};
+
 export const Offer = (props: OfferProps & { onClick: (event: React.MouseEvent<HTMLSpanElement>) => void}) => (
   <OfferContainer>
     {extractTags(props.message).map((tag, index) => <Tag key={index}>{tag}</Tag>)}
     <Time title={`${timeAgo(props.date)} day(s) ago`}>{(new Date(props.date)).toLocaleString()}</Time>
 
-    <p dangerouslySetInnerHTML={{__html: props.message.replace(/\n/g, '<br />')}} />
+    <p dangerouslySetInnerHTML={{__html: addLink(props.message.replace(/\n/g, '<br />'))}} />
     Posted by <Author title={props.id}>{props.author.name}</Author> 
     {' '}
     <HelpTrigger onClick={props.onClick}>how to contact this person?</HelpTrigger>
