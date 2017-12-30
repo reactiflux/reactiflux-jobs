@@ -87,7 +87,7 @@ export const Offer = (props: OfferProps & { onClick: (event: React.MouseEvent<HT
     {extractTags(props.message).map((tag, index) => <Tag key={index}>{tag}</Tag>)}
     <Time title={`${timeAgo(props.date)} day(s) ago`}>{(new Date(props.date)).toLocaleString()}</Time>
 
-    <p dangerouslySetInnerHTML={{__html: addLink(props.message.replace(/\n/g, '<br />'))}} />
+    <p dangerouslySetInnerHTML={{__html: addLink(props.message).replace(/\n/g, '<br />')}} />
     Posted by <Author title={props.id}>{props.author.name}</Author> 
     {' '}
     <HelpTrigger onClick={props.onClick}>how to contact this person?</HelpTrigger>
