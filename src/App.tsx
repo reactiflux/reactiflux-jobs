@@ -2,11 +2,46 @@ import * as React from 'react';
 import styled, { injectGlobal } from 'styled-components';
 import debounce from 'lodash-es/debounce';
 import throttle from 'lodash-es/throttle';
+import queryString from './queryString';
+import { get, compact } from './utils';
 
 import { Offer, OfferProps } from './components/Offer';
 import { Help } from './components/Help';
 import { Header } from './components/Header';
 import { LoadingIndicator } from './components/LoadingIndicator';
+
+const getStateFromQueryString = (): SearchState => {
+  const query = queryString.fromString(location.search);
+
+  if (query.range) {
+    query.range = parseInt(query.range, 10);
+  }
+  if (query.limit) {
+    query.limit = parseInt(query.limit, 10);
+  }
+  if (query.allowRemote) {
+    query.allowRemote = query.allowRemote === 'true';
+  }
+  if (query.provideVisa) {
+    query.provideVisa = query.provideVisa === 'true';
+  }
+  if (query.internship) {
+    query.internship = query.internship === 'true';
+  }
+
+  return query;
+};
+
+const updateQueryStringState = (updatedState: object) => {
+  const current = getStateFromQueryString();
+
+  const params = compact({
+    ...current,
+    ...updatedState
+  });
+
+  history.replaceState(null, '', `/?${queryString.toString(params)}`);
+};
 
 // tslint:disable-next-line
 injectGlobal`
@@ -22,8 +57,8 @@ injectGlobal`
     font-size: 14px;
     line-height: 1.4;
     color: #444;
-    backgorund: white;
-  }  
+    background: white;
+  }
 
   a {
     color: #dd1d64;
@@ -100,65 +135,53 @@ enum HasMore {
 
 enum NetworkStatus {
   IDLE = 0,
-  WORKING = 1  
+  WORKING = 1
 }
 
-type AppState = {
-  range: number,
-  limit: number,
-  type: OfferType,
-  allowRemote: boolean,
-  provideVisa: boolean,
-  internship: boolean,
-  query: string,
-  hasMore: HasMore,
-  networkStatus: NetworkStatus,
-  helpShown: boolean,
-  offers: Array<OfferProps> | undefined,
+interface SearchState {
+  range: number;
+  limit: number;
+  type: OfferType;
+  allowRemote: boolean;
+  provideVisa: boolean;
+  internship: boolean;
+  query: string;
+}
+
+interface AppState extends SearchState {
+
+  hasMore: HasMore;
+  networkStatus: NetworkStatus;
+  helpShown: boolean;
+  offers: Array<OfferProps> | undefined;
   pager: {
-    next?: string,
-    prev?: string
-  }
-};
-
-class App extends React.Component {
-  state: AppState = {
-    range: 180,
-    limit: 50,
-    type: OfferType.HIRING,
-    allowRemote: false,
-    provideVisa: false,
-    internship: false,
-    query: '',
-    hasMore: HasMore.MAYBE,
-    networkStatus: NetworkStatus.IDLE,
-    helpShown: false,
-    offers: undefined,
-    pager: {
-      next: undefined,
-      prev: undefined
-    }
+    next?: string;
+    prev?: string;
   };
+}
 
+class App extends React.Component<{}, AppState> {
   performSearch = debounce(() => {
-    const query = [];
-    query.push(`range=${this.state.range}`);
-    query.push(`limit=${this.state.limit}`);
-    query.push(`type=${this.state.type}`);
+    const query: { [key: string]: {} } = {
+      range: this.state.range,
+      limit: this.state.limit,
+      type: this.state.type
+    };
+
     if (this.state.allowRemote) {
-      query.push(`remote=${this.state.allowRemote}`);
+      query.remote = this.state.allowRemote;
     }
     if (this.state.internship) {
-      query.push(`internship=${this.state.internship}`);
+      query.internship = this.state.internship;
     }
     if (this.state.provideVisa) {
-      query.push(`visa=${this.state.provideVisa}`);
+      query.visa = this.state.provideVisa;
     }
     if (this.state.query) {
-      query.push(`query=${this.state.query}`);
+      query.query = this.state.query;
     }
-    const url = `/api/job?${query.join('&')}`;
 
+    const url = `/api/job?${queryString.toString(query)}`;
     this.load(url, false);
   }, 250, {
     trailing: true
@@ -166,7 +189,7 @@ class App extends React.Component {
 
   finalizeQuery = debounce((): void => {
     this.performSearch();
-  }, 500);  
+  }, 500);
 
   detectScroll = throttle(() => {
     if (this.state.networkStatus === NetworkStatus.WORKING || this.state.hasMore === HasMore.NO) {
@@ -178,7 +201,7 @@ class App extends React.Component {
   }, 500);
 
   load = (url: string, append: boolean = false) => {
-    url = `https://reactistory.com:8443${url}`;    
+    url = `https://reactistory.com:8443${url}`;
 
     this.setState({
       networkStatus: NetworkStatus.WORKING,
@@ -203,7 +226,7 @@ class App extends React.Component {
           next: data.paginate ? data.paginate.next : undefined
         }
       });
-    });    
+    });
   }
 
   loadOlder = () => {
@@ -219,45 +242,103 @@ class App extends React.Component {
   }
 
   updateRange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
-    this.setState({
+    const state = {
       range: parseInt(event.target.value, 10)
-    }, this.performSearch);
+    };
+
+    this.setState(state, () => {
+      this.performSearch();
+      updateQueryStringState(state);
+    });
   }
 
   updateLimit = (event: React.ChangeEvent<HTMLSelectElement>): void => {
-    this.setState({
+    const state = {
       limit: parseInt(event.target.value, 10)
-    }, this.performSearch);
-  }  
+    };
+
+    this.setState(state, () => {
+      this.performSearch();
+      updateQueryStringState(state);
+    });
+  }
 
   toggleVisa = (event: React.MouseEvent<HTMLInputElement>) => {
-    this.setState({
+    const state = {
       provideVisa: !this.state.provideVisa
-    }, this.performSearch);
+    };
+
+    this.setState(state, () => {
+      this.performSearch();
+      updateQueryStringState(state);
+    });
   }
 
   toggleRemote = (event: React.MouseEvent<HTMLInputElement>) => {
-    this.setState({
+    const state = {
       allowRemote: !this.state.allowRemote
-    }, this.performSearch);
+    };
+
+    this.setState(state, () => {
+      this.performSearch();
+      updateQueryStringState(state);
+    });
   }
 
   toggleInternship = (event: React.MouseEvent<HTMLInputElement>) => {
-    this.setState({
+    const state = {
       internship: !this.state.internship
-    }, this.performSearch);
+    };
+
+    this.setState(state, () => {
+      this.performSearch();
+      updateQueryStringState(state);
+    });
   }
 
   updateType = (event: React.ChangeEvent<HTMLSelectElement>): void => {
-    this.setState({
-      type: event.target.value
-    }, this.performSearch);
+    const state = {
+      type: event.target.value as OfferType
+    };
+
+    this.setState(state, () => {
+      this.performSearch();
+      updateQueryStringState(state);
+    });
   }
 
   updateQuery = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    this.setState({
+    const state = {
       query: event.currentTarget.value
-    }, this.finalizeQuery);
+    };
+
+    this.setState(state, () => {
+      this.finalizeQuery();
+      updateQueryStringState(state);
+    });
+  }
+
+  constructor(props: {}) {
+    super(props);
+    const query = getStateFromQueryString();
+
+    this.state = {
+      range: get(query, 'range', 180),
+      limit: get(query, 'limit', 50),
+      type: get(query, 'type', OfferType.HIRING),
+      allowRemote: get(query, 'allowRemote', false),
+      provideVisa: get(query, 'provideVisa', false),
+      internship: get(query, 'internship', false),
+      query: get(query, 'query', ''),
+      hasMore: HasMore.MAYBE,
+      networkStatus: NetworkStatus.IDLE,
+      helpShown: false,
+      offers: undefined,
+      pager: {
+        next: undefined,
+        prev: undefined
+      }
+    };
   }
 
   render() {
@@ -272,23 +353,23 @@ class App extends React.Component {
           <p>
             If the job posting does not contain a dedicated email, link or phone number you can contact the person
             that added the post by joining our community over at <a href="https://www.reactiflux.com">Reactiflux.com</a>
-            {' '} and sending a direct message to the person.  
+            {' '} and sending a direct message to the person.
           </p>
           <p>
-            If you don't already have one, you will need to create a (free!) 
+            If you don't already have one, you will need to create a (free!)
             {' '}<a href="https://discordapp.com/">Discord</a> account.
           </p>
         </Help>}
-        <Header subtitle="Jobs">Reactiflux</Header>        
+        <Header subtitle="Jobs">Reactiflux</Header>
         <Content>
           <Sidebar>
             <label>
               <select value={this.state.type} onChange={this.updateType}>
                 <option value={OfferType.HIRING}>I'm looking for a JOB</option>
                 <option value={OfferType.FORHIRE}>I'm looking for an EMPLOYEE</option>
-              </select> 
-            </label> 
-                                    
+              </select>
+            </label>
+
             <label>
               <select value={this.state.range} onChange={this.updateRange}>
                 <option value={7}>offers posted in last week</option>
@@ -303,35 +384,35 @@ class App extends React.Component {
               <select value={this.state.limit} onChange={this.updateLimit}>
                 <option value={50}>load 50 results at a time</option>
                 <option value={100}>load 100 results at a time</option>
-              </select> 
-            </label> 
+              </select>
+            </label>
 
             <label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 onChange={this.updateQuery}
-                value={this.state.query} 
-                placeholder="text search" 
+                value={this.state.query}
+                placeholder="text search"
               />
             </label>
 
             <label>
-              <input type="checkbox" checked={this.state.provideVisa} onClick={this.toggleVisa} /> 
+              <input type="checkbox" checked={this.state.provideVisa} onClick={this.toggleVisa} />
               employer helps with Visa
             </label>
 
             <label>
-              <input type="checkbox" checked={this.state.allowRemote} onClick={this.toggleRemote} /> 
+              <input type="checkbox" checked={this.state.allowRemote} onClick={this.toggleRemote} />
               allow remote work
             </label>
 
             <label>
-              <input type="checkbox" checked={this.state.internship} onClick={this.toggleInternship} /> 
+              <input type="checkbox" checked={this.state.internship} onClick={this.toggleInternship} />
               offer is an internship / no exp. required
             </label>
 
           </Sidebar>
-          <OfferList>          
+          <OfferList>
             {isSearching && <Message>Searching ...</Message>}
             {hasResults && (offers || []).map(offer => {
               return <Offer {...offer} onClick={this.toggleHelp} key={offer.id} />;
