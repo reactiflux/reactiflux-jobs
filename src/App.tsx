@@ -13,20 +13,20 @@ import { LoadingIndicator } from './components/LoadingIndicator';
 const getStateFromQueryString = (): SearchState => {
   const query = queryString.fromString(location.search);
 
-  if (query.range) {
+  if (query.range && typeof query.range === 'string') {
     query.range = parseInt(query.range, 10);
   }
-  if (query.limit) {
+  if (query.limit && typeof query.limit === 'string') {
     query.limit = parseInt(query.limit, 10);
   }
   if (query.allowRemote) {
-    query.allowRemote = query.allowRemote === 'true';
+    query.allowRemote = query.allowRemote === true || query.allowRemote === 'true';
   }
   if (query.provideVisa) {
-    query.provideVisa = query.provideVisa === 'true';
+    query.provideVisa = query.provideVisa === true || query.provideVisa === 'true';
   }
   if (query.internship) {
-    query.internship = query.internship === 'true';
+    query.internship = query.internship === true || query.internship === 'true';
   }
 
   return query;
@@ -138,14 +138,14 @@ enum NetworkStatus {
   WORKING = 1
 }
 
-interface SearchState {
-  range: number;
-  limit: number;
-  type: OfferType;
-  allowRemote: boolean;
-  provideVisa: boolean;
-  internship: boolean;
-  query: string;
+export interface SearchState {
+  range?: number;
+  limit?: number;
+  type?: OfferType;
+  allowRemote?: boolean;
+  provideVisa?: boolean;
+  internship?: boolean;
+  query?: string;
 }
 
 interface AppState extends SearchState {
@@ -163,9 +163,9 @@ interface AppState extends SearchState {
 class App extends React.Component<{}, AppState> {
   performSearch = debounce(() => {
     const query: { [key: string]: {} } = {
-      range: this.state.range,
-      limit: this.state.limit,
-      type: this.state.type
+      range: this.state.range!,
+      limit: this.state.limit!,
+      type: this.state.type!
     };
 
     if (this.state.allowRemote) {
@@ -214,7 +214,7 @@ class App extends React.Component<{}, AppState> {
       let hasMore = HasMore.MAYBE;
       if (data.messages.length === 0) {
         hasMore = HasMore.NO;
-      } else if (data.messages.length < this.state.limit) {
+      } else if (data.messages.length < this.state.limit!) {
         hasMore = HasMore.NO;
       }
       this.setState({
