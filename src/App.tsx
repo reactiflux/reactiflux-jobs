@@ -2,7 +2,7 @@ import * as React from 'react';
 import styled, { injectGlobal } from 'styled-components';
 import debounce from 'lodash-es/debounce';
 import throttle from 'lodash-es/throttle';
-import queryString from './queryString';
+import queryString, { QueryString } from './queryString';
 import { get, compact } from './utils';
 
 import { Offer, OfferProps } from './components/Offer';
@@ -10,23 +10,14 @@ import { Help } from './components/Help';
 import { Header } from './components/Header';
 import { LoadingIndicator } from './components/LoadingIndicator';
 
-const getStateFromQueryString = (): SearchState => {
+const getStateFromQueryString = (): QueryString => {
   const query = queryString.fromString(location.search);
 
   if (query.range) {
-    query.range = parseInt(query.range, 10);
+    query.range = parseInt(query.range.toString(), 10);
   }
   if (query.limit) {
-    query.limit = parseInt(query.limit, 10);
-  }
-  if (query.allowRemote) {
-    query.allowRemote = query.allowRemote === 'true';
-  }
-  if (query.provideVisa) {
-    query.provideVisa = query.provideVisa === 'true';
-  }
-  if (query.internship) {
-    query.internship = query.internship === 'true';
+    query.limit = parseInt(query.limit.toString(), 10);
   }
 
   return query;
@@ -162,7 +153,7 @@ interface AppState extends SearchState {
 
 class App extends React.Component<{}, AppState> {
   performSearch = debounce(() => {
-    const query: { [key: string]: {} } = {
+    const query: QueryString = {
       range: this.state.range,
       limit: this.state.limit,
       type: this.state.type
@@ -184,8 +175,8 @@ class App extends React.Component<{}, AppState> {
     const url = `/api/job?${queryString.toString(query)}`;
     this.load(url, false);
   }, 250, {
-    trailing: true
-  });
+      trailing: true
+    });
 
   finalizeQuery = debounce((): void => {
     this.performSearch();
