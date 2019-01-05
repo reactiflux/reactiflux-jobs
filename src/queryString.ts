@@ -1,6 +1,9 @@
-import { SearchState } from './App';
+export interface QueryString {
+  [key: string]: string | number | boolean;
+}
+
 const queryString = {
-  fromString(str: string): SearchState {
+  fromString(str: string): QueryString {
     if (!str) {
       return {};
     }
@@ -18,7 +21,7 @@ const queryString = {
       }, {});
   },
 
-  toString(obj: {[key: string]: {}}) {
+  toString(obj: QueryString) {
     return Object.keys(obj)
       .map(key => `${key}=${obj[key]}`)
       .join('&');
